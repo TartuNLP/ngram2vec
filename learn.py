@@ -1,111 +1,214 @@
+#!/usr/bin/env python3
+
 import re
+import sys
 import math
 import random
 
 import numpy as np
 import tensorflow as tf
 
-from collections import defaultdict
+from collections import defaultdict, deque, Counter
 from six.moves import xrange
 
-maxNgramSize = 3
+class CorpusNgramIterator:
+	numData = []
+	ngramBuffer = deque()
+	currSnt = 0
+	
+	wordBits = 20
+	
+	__UNK__ = 1
+	
+	word2idx = { '__UNK__': 1 }
+	idx2word = {}
+	
+	nidx2list = {}
+	hash2nidx = {}
+	
+	def __init__(self, filename, miniBatchSize, minCounts = [5, 50, 50], contextWidth = 2, numSamples = 4):
+		self.miniBatchSize = miniBatchSize
+		self.contextWidth = contextWidth
+		self.numSamples = numSamples
+		self.maxNgramLen = len(minCounts)
+		
+		self.readRawData(filename, minCounts)
+	
+	def getVocSize(self):
+		return len(self.nidx2list)
+			
+	def readRawData(self, filename, minCounts):
+		"""
+		read the file, compose a dictionary of counts and indexes and save data as indexes
+		"""
+		freqDict = self.getFreqDict(filename)
+		
+		words = [None, "__UNK__"] + [word for word in sorted(freqDict, key=lambda x: -freqDict[x]) if freqDict[word] >= minCounts[0]]
+		
+		self.idx2word = dict(enumerate(words))
+		
+		self.word2idx = dict([(w, i) for i, w in enumerate(words)])
+		
+		self.hash2nidx = { i: i for i in range(len(words)) }
+		self.nidx2list = { i: [i,] for i in range(len(words)) }
+		
+		ngramFreqDict = self.numsAndNgrams(filename, freqDict)
+		
+		baseIdx = len(words)
+		
+		print("DEBUG words:", baseIdx)
+		
+		for nlen in sorted(ngramFreqDict):
+			ndict = ngramFreqDict[nlen]
+			
+			hashVals = [hashVal for hashVal in sorted(ndict, key=lambda x: -ndict[x]) if ndict[hashVal] >= minCounts[nlen]]
+			nidxs = list(range(baseIdx, baseIdx + len(hashVals)))
+			
+			thisHash2nidx = dict(zip(hashVals, nidxs))
+			
+			thisNidx2list = { nidx: self.hash2list(hashVal) for (nidx, hashVal) in zip(nidxs, hashVals) }
+			
+			self.hash2nidx.update(thisHash2nidx)
+			self.nidx2list.update(thisNidx2list)
+			
+			print("DEBUG ngrams len", nlen, ":", len(hashVals))
+			
+			baseIdx += len(hashVals)
+	
+	def getFreqDict(self, filename):
+		fh = open(filename, 'r')
+		result = Counter([token for line in fh for token in line.split()])
+		fh.close()
+		return result
+	
+	def numsAndNgrams(self, filename, freqDict):
+		ngramFreqDict = defaultdict(lambda: defaultdict(int))
+		
+		with open(filename, 'r', encoding='utf8') as fh:
+			for line in fh:
+				tokens = line.split()
+				
+				numSentence = [(self.word2idx[token] if token in self.word2idx else self.__UNK__) for token in tokens]
+				self.numData.append(numSentence)
+				
+				for sntIdx in range(len(numSentence)):
+					for ngramLen in range(1, self.maxNgramLen):
+						if sntIdx - ngramLen >= 0:
+							tokenIdxs = [numSentence[i] for i in range(sntIdx - ngramLen, sntIdx + 1)]
+							
+							if not self.__UNK__ in tokenIdxs:
+								ngramFreqDict[ngramLen][self.list2hash(tokenIdxs)] += 1
+		
+		return ngramFreqDict
+	
+	def prepareDicts(self, minCounts, idxFreq):
+		self.idx2word = dict(zip(self.word2idx.values(), self.word2idx.keys()))
+		
+		for idx, freq in idxFreq[0].items():
+			if freq < minCounts[0]:
+				del self.idx2word[idx]
+			else:
+				self.ngram2raw[idx] = idx
+		
+		numWords = len(self.idx2word) + 1
+		
+		for ngramLen, minCount in enumerate(minCounts[1:]):
+			for rawIdx, freq in idxFreq[ngramLen].items():
+				if freq >= minCount:
+					cleanIdx = numWords
+					numWords += 1
+					
+					self.ngram2raw[cleanIdx] = rawIdx
+					self.raw2ngram[rawIdx] = cleanIdx
+	
+	def generateSkipGramPairs(self, seq):
+		seqLen = len(seq)
+		
+		for idx, elem in enumerate(seq):
+			for ngramLen in range(self.maxNgramLen):
+				if idx + ngramLen < seqLen:
+					rIdx = idx + ngramLen + 1
+					
+					rawCore = seq[idx: rIdx]
+					try:
+						hashVal = self.list2hash(rawCore)
+						coreIdx = self.hash2nidx[hashVal]
+						
+						context = seq[max(idx - self.contextWidth, 0): idx] + seq[rIdx: min(rIdx + self.contextWidth, seqLen)]
+						
+						for contextIdx in random.sample(context, min(self.numSamples, len(context))):
+							if not contextIdx in self.idx2word:
+								contextIdx = 100 + contextIdx
+							
+							yield (coreIdx, contextIdx)
+					except KeyError:
+						pass
+	
+	def fillBuffer(self):
+		skipGrams = list(self.generateSkipGramPairs(self.numData[self.currSnt]))
+		
+		random.shuffle(skipGrams)
+		
+		self.ngramBuffer.extend(skipGrams)
+		
+		self.currSnt = (self.currSnt + 1) % len(self.numData)
+	
+	def getNextSkipGramPair(self):
+		retry = 100
+		
+		while retry > 0:
+			try:
+				res = self.ngramBuffer.popleft()
+			except IndexError:
+				retry -= 1
+				self.fillBuffer()
+				continue
+			else:
+				break
+		
+		if retry == 0:
+			raise Exception("Failed to refill the buffer after 100 attempts")
+		
+		return res
+		
+	def __next__(self):
+		batch = np.ndarray(shape=(self.miniBatchSize), dtype=np.int32)
+		labels = np.ndarray(shape=(self.miniBatchSize, 1), dtype=np.int32)
+		
+		for i in range(self.miniBatchSize):
+			batch[i], labels[i, 0] = self.getNextSkipGramPair()
+		
+		return (batch, labels)
+		
+	def __iter__(self):
+		return self
+	
+	def hash2list(self, hashVal):
+		runningIdx = hashVal
+		result = []
+		
+		while runningIdx > 0:
+			result.append(runningIdx % (1 << self.wordBits))
+			runningIdx = runningIdx >> self.wordBits
+		
+		return result
+	
+	def list2hash(self, wordIdxList):
+		currBits = 0
+		
+		result = 0
+		
+		for wordIdx in wordIdxList:
+			result += wordIdx << currBits
+			currBits += self.wordBits
+		
+		return result
 
-def read_data(filename):
-    with open(filename, 'r', encoding='utf8') as fh:
-        #return [line.split() for line in fh]
-        for line in fh:
-            yield line.split()
-
-def iterNgrams(seqOfSeq, maxSize = 3, minSize = 1):
-    assert minSize > 0
-    
-    for seqIdx, seq in enumerate(seqOfSeq):
-        for i in range(minSize - 1, len(seq)):
-            for ngramLen in range(minSize - 1, min(maxSize, i + 1)):
-                ngram = seq[i-ngramLen : i+1]
-                if not ngram:
-                    msg = "Empty ngram in {0}".format(str(seq))
-                    raise Exception()
-                yield ngram, i - ngramLen, seqIdx
-
-def decodeNgram(idxs, revDict):
-    return "_".join([revDict[idx] for idx in idxs])
-
-def build_dataset(snts):
-    """Process raw inputs into a dataset."""
-
-    dictionary = { 'UNK': 0 }
-    data = list()
-    
-    for snt in snts:
-        datasnt = list()
-        
-        for word in snt:
-            if re.search(r'\w', word):
-                if not word in dictionary:
-                    dictionary[word] = len(dictionary)
-
-                datasnt.append(dictionary[word])
-        data.append(datasnt)
-    print("reading done")
-    ngram_dictionary = dict()
-
-    for ngram, _, _ in iterNgrams(data, minSize=2, maxSize = maxNgramSize):
-        nrep = str(ngram)
-        if not nrep in ngram_dictionary:
-            ngram_dictionary[nrep] = len(ngram_dictionary) + len(dictionary)
-
-    reversed_dictionary = dict(zip(dictionary.values(), dictionary.keys()))
-    reversed_ngram_dictionary = dict(zip(ngram_dictionary.values(), [eval(k) for k in ngram_dictionary.keys()]))
-    reversed_dictionary.update({k: decodeNgram(v, reversed_dictionary) for k, v in reversed_ngram_dictionary.items()})
-    
-    return data, dictionary, reversed_dictionary, ngram_dictionary
-
-def iterWindows(seqOfSeq, ngramDict, window_size=2, max_ngram=3):
-    for ngram, nStart, seqIdx in iterNgrams(seqOfSeq, maxSize = max_ngram):
-        seq = seqOfSeq[seqIdx]
-        nLen = len(ngram)
-        ngramRep = ngram[0] if nLen == 1 else ngramDict[str(ngram)]
-        outputContext = seq[max(nStart-window_size, 0):nStart] + seq[nStart+nLen:nStart+nLen+window_size]
-        for predictMe in outputContext:
-            yield ngramRep, predictMe
-
-def xgenerate_batch(iterator, batch_size, num_skips, skip_window, prevBuff = []):
-    
-    resultBuffer = list(prevBuff)
-    
-    try:
-        while len(resultBuffer) < batch_size:
-            resultBuffer.append(next(iterator))
-    except StopIteration:
-        pass
-    
-    if len(resultBuffer) < batch_size:
-        return resultBuffer, None
-    else:
-        batch = np.ndarray(shape=(batch_size), dtype=np.int32)
-        labels = np.ndarray(shape=(batch_size, 1), dtype=np.int32)
-
-        for i in range(batch_size):
-            batch[i], labels[i, 0] = resultBuffer[i]
-    
-        return (batch, labels)
-
-if __name__ == "__main__":
-	snts = read_data("europarl.en")
-	datax, dictionary, reverse_dictionary, ngram_dict = build_dataset(snts)
-
-	#del vocabulary  # Hint to reduce memory.
-	print('Sample data', datax[0], [reverse_dictionary[i] for i in datax[0]])
-	rdi = list(reverse_dictionary.items())
-	print('Words and n-grams:', len(reverse_dictionary), rdi[:3], rdi[-5:-2])
-	vocabulary_size = len(reverse_dictionary)
-	print(vocabulary_size)
-
-	batch_size = 128
-	embedding_size = 256  # Dimension of the embedding vector.
-	skip_window = 2       # How many words to consider left and right.
-	num_skips = 2         # How many times to reuse an input to generate a label.
+def trainEmbeddings(vocabulary_size, miniBatchIterator, embedding_size = 256, num_iters = 1e6):
+	batch_size = miniBatchIterator.miniBatchSize
+	#embedding_size = 256  # Dimension of the embedding vector.
+	#skip_window = 2       # How many words to consider left and right.
+	#num_skips = 2         # How many times to reuse an input to generate a label.
 
 	# We pick a random validation set to sample nearest neighbors. Here we limit the
 	# validation samples to the words that have a low numeric ID, which by
@@ -157,23 +260,14 @@ if __name__ == "__main__":
 		# Add variable initializer.
 		init = tf.global_variables_initializer()
 
-	num_steps = 2500001
-
-	itr = iterWindows(datax, ngram_dict, window_size = skip_window, max_ngram=maxNgramSize)
-
 	with tf.Session(graph=graph) as session:
 		# We must initialize all variables before we use them.
 		init.run()
 		print('Initialized')
 
 		average_loss = 0
-		for step in xrange(num_steps):
-			batch_inputs, batch_labels = xgenerate_batch(itr, batch_size, num_skips, skip_window)
-			
-			while batch_labels == None:
-				itr = iterWindows(datax, ngram_dict, window_size = skip_window, max_ngram=maxNgramSize)
-				print("restarted iterator")
-				batch_inputs, batch_labels = xgenerate_batch(itr, batch_size, num_skips, skip_window, prevBuff = batch_inputs)
+		for step in xrange(num_iters):
+			batch_inputs, batch_labels = next(miniBatchIterator)
 		 
 			feed_dict = {train_inputs: batch_inputs, train_labels: batch_labels}
 
@@ -222,3 +316,8 @@ if __name__ == "__main__":
 	import json
 	with open('3grams-emb256-w2.dat', 'w') as fh:
 		 json.dump([dictionary, reverse_dictionary, ngram_dict, final_embeddings.tolist()], fh)
+
+if __name__ == "__main__":
+	ngramIter = CorpusNgramIterator(sys.argv[1], 16, minCounts = [5, 5, 5], contextWidth = 1, numSamples = 1)
+	
+	embeddings = trainEmbeddings(ngramIter.getVocSize(), ngramIter, num_iters = 10)
