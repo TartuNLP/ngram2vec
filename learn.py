@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 import sys
-import json
+#import json
+import pickle
 from ngramiter import CorpusNgramIterator
 from trainvec import trainEmbeddings
 
@@ -12,5 +13,6 @@ if __name__ == "__main__":
 	
 	embeddings = trainEmbeddings(ngramIter.getVocSize(), ngramIter)
 	
-	with open(sys.argv[2], 'w') as outFh:
-		json.dump({ 'embeddings': embeddings.tolist(), 'dicts': ngramIter.getDicts() }, outFh)
+	with open(sys.argv[2], 'wb') as outFh:
+		#json.dump({ 'embeddings': embeddings.tolist(), 'dicts': ngramIter.getDicts() }, outFh)
+		pickle.dump({ 'embeddings': embeddings.tolist(), 'dicts': ngramIter.getDicts() }, outFh, pickle.HIGHEST_PROTOCOL)

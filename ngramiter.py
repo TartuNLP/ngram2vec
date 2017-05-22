@@ -2,6 +2,7 @@ import re
 import spacy
 import numpy as np
 import random
+from nvecs import hash2list, list2hash
 
 from collections import defaultdict, deque, Counter
 
@@ -80,7 +81,7 @@ class CorpusNgramIterator:
 			
 			thisHash2nidx = dict(zip(hashVals, nidxs))
 			
-			thisNidx2list = { nidx: self.hash2list(hashVal) for (nidx, hashVal) in zip(nidxs, hashVals) }
+			thisNidx2list = { nidx: hash2list(hashVal, self.wordBits) for (nidx, hashVal) in zip(nidxs, hashVals) }
 			
 			self.hash2nidx.update(thisHash2nidx)
 			self.nidx2list.update(thisNidx2list)
@@ -131,7 +132,7 @@ class CorpusNgramIterator:
 							tokenPoss = set([poses[i] for i in range(sntIdx - ngramLen, sntIdx + 1)])
 							
 							if (not self.__UNK__ in tokenIdxs) and (tokenPoss & fltPos):
-								ngramFreqDict[ngramLen][self.list2hash(tokenIdxs)] += 1
+								ngramFreqDict[ngramLen][list2hash(tokenIdxs, self.wordBits)] += 1
 		
 		return ngramFreqDict
 	
@@ -234,24 +235,3 @@ class CorpusNgramIterator:
 		
 	def __iter__(self):
 		return self
-	
-	def hash2list(self, hashVal):
-		runningIdx = hashVal
-		result = []
-		
-		while runningIdx > 0:
-			result.append(runningIdx % (1 << self.wordBits))
-			runningIdx = runningIdx >> self.wordBits
-		
-		return result
-	
-	def list2hash(self, wordIdxList):
-		currBits = 0
-		
-		result = 0
-		
-		for wordIdx in wordIdxList:
-			result += wordIdx << currBits
-			currBits += self.wordBits
-		
-		return result
