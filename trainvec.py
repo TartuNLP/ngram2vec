@@ -4,7 +4,7 @@ import math
 
 from six.moves import xrange
 
-def trainEmbeddings(vocabulary_size, miniBatchIterator, embedding_size = 256, learning_rate = 0.3, num_neg_sampled = 32):
+def trainEmbeddings(vocabulary_size, miniBatchIterator, embedding_size = 256, learning_rate = 1.0, num_neg_sampled = 64):
 	batch_size = miniBatchIterator.miniBatchSize
 	#embedding_size = 256  # Dimension of the embedding vector.
 	#skip_window = 2       # How many words to consider left and right.
@@ -13,7 +13,7 @@ def trainEmbeddings(vocabulary_size, miniBatchIterator, embedding_size = 256, le
 	# We pick a random validation set to sample nearest neighbors. Here we limit the
 	# validation samples to the words that have a low numeric ID, which by
 	# construction are also the most frequent.
-	valid_size = 45     # Random set of words to evaluate similarity on.
+	valid_size = 40     # Random set of words to evaluate similarity on.
 	valid_window = 500  # Only pick dev samples in the head of the distribution.
 	#valid_examples = np.random.choice(valid_window, valid_size, replace=False)
 	
@@ -21,7 +21,7 @@ def trainEmbeddings(vocabulary_size, miniBatchIterator, embedding_size = 256, le
 	
 	valid_examples = np.array(np.random.choice(valid_window, 20, replace=False).tolist() + \
 		(vstart + np.random.choice(valid_window, 25, replace=False)).tolist())
-	#valid_examples = np.random.choice(valid_window, valid_size, replace=False)
+	#valid_examples = 200 + np.random.choice(valid_window, valid_size, replace=False)
 	
 	graph = tf.Graph()
 
@@ -33,7 +33,7 @@ def trainEmbeddings(vocabulary_size, miniBatchIterator, embedding_size = 256, le
 		valid_dataset = tf.constant(valid_examples, dtype=tf.int32)
 
 		# Ops and variables pinned to the CPU because of missing GPU implementation
-		with tf.device('/gpu:0'):
+		with tf.device('/cpu:0'):
 			# Look up embeddings for inputs.
 			embeddings = tf.Variable(tf.random_uniform([vocabulary_size, embedding_size], -1.0, 1.0))
 			embed = tf.nn.embedding_lookup(embeddings, train_inputs)
@@ -74,7 +74,6 @@ def trainEmbeddings(vocabulary_size, miniBatchIterator, embedding_size = 256, le
 		step = 0
 		#for step in xrange(num_iters):
 		for batch_inputs, batch_labels in miniBatchIterator:
-			#batch_inputs, batch_labels = next(miniBatchIterator)
 			step += 1
 		 
 			feed_dict = {train_inputs: batch_inputs, train_labels: batch_labels}
@@ -84,9 +83,9 @@ def trainEmbeddings(vocabulary_size, miniBatchIterator, embedding_size = 256, le
 			_, loss_val = session.run([optimizer, loss], feed_dict=feed_dict)
 			average_loss += loss_val
 
-			if step % 10000 == 0:
+			if step % 2000 == 0:
 				if step > 0:
-					average_loss /= 10000
+					average_loss /= 2000
 				# The average loss is an estimate of the loss over the last 2000 batches.
 				print('Average loss at step ', step, ': ', average_loss)
 				average_loss = 0
@@ -108,7 +107,7 @@ def trainEmbeddings(vocabulary_size, miniBatchIterator, embedding_size = 256, le
 					for k in xrange(top_k):
 						#close_word = miniBatchIterator.idx2word[nearest[k]]
 						close_word = "_".join([miniBatchIterator.idx2word[wIdx] for wIdx in miniBatchIterator.nidx2list[nearest[k]]])
-						log_str = '%s %s,' % (log_str, close_word)
+						log_str = '%s %s (%s),' % (log_str, close_word, sim[i, nearest[k]])
 					print(log_str)
 		final_embeddings = normalized_embeddings.eval()
 		return final_embeddings
