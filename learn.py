@@ -10,7 +10,7 @@ import logging
 if __name__ == "__main__":
 	logging.basicConfig(level=logging.DEBUG)
 	
-	ngramIter = CorpusNgramIterator(sys.argv[1], 128, minCounts = [5, 40, 80], stopAtNCorpusPasses = 20)
+	ngramIter = CorpusNgramIterator(sys.argv[1], 128, minCounts = [5, 40, 80], stopAtNEpochs = 5)
 	
 	embeddings = trainEmbeddings(ngramIter.getVocSize(), ngramIter)
 	

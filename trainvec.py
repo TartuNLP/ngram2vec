@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import math
+import pickle
 
 from six.moves import xrange
 
@@ -69,6 +70,8 @@ def trainEmbeddings(vocabulary_size, miniBatchIterator, embedding_size = 256, le
 		# We must initialize all variables before we use them.
 		init.run()
 		print('Initialized')
+		
+		intermSaveNum = 0
 
 		average_loss = 0
 		step = 0
@@ -93,6 +96,7 @@ def trainEmbeddings(vocabulary_size, miniBatchIterator, embedding_size = 256, le
 			# Note that this is expensive (~20% slowdown if computed every 500 steps)
 			if step % 100000 == 0:
 				sim = similarity.eval()
+				
 				for i in xrange(valid_size):
 					#valid_word = miniBatchIterator.idx2word[valid_examples[i]]
 					
@@ -109,5 +113,15 @@ def trainEmbeddings(vocabulary_size, miniBatchIterator, embedding_size = 256, le
 						close_word = "_".join([miniBatchIterator.idx2word[wIdx] for wIdx in miniBatchIterator.nidx2list[nearest[k]]])
 						log_str = '%s %s (%s),' % (log_str, close_word, sim[i, nearest[k]])
 					print(log_str)
+				
+			if step % 500000 == 0:
+				print("saving intermediate model")
+				intermSaveNum += 1
+				filename = "tmpmodels/tmpvecs.{0}.mdl".format(intermSaveNum)
+				embeddings = normalized_embeddings.eval()
+				
+				with open(filename, 'wb') as outFh:
+					pickle.dump({ 'embeddings': embeddings.tolist(), 'dicts': miniBatchIterator.getDicts() }, outFh, pickle.HIGHEST_PROTOCOL)
+
 		final_embeddings = normalized_embeddings.eval()
 		return final_embeddings

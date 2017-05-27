@@ -73,9 +73,11 @@ class CorpusNgramIterator:
 	
 	def toks(self, line, pos=False):
 		if pos:
-			return [rawTok.split("|") for rawTok in line.lower().strip().split(" ")]
+			#return [rawTok.split("|") for rawTok in line.lower().strip().split(" ")]
+			return [(w, None) for w in line.lower().strip().split(" ")]
 		else:
-			return [rawTok.split("|")[0] for rawTok in line.lower().strip().split(" ")]
+			#return [rawTok.split("|")[0] for rawTok in line.lower().strip().split(" ")]
+			return line.lower().strip().split(" ")
 	
 	def countWords(self, filename):
 		with open(filename, 'r') as fh:
@@ -132,7 +134,8 @@ class CorpusNgramIterator:
 						ngramIdxs, ngramTags = zip(*[taggedIndexes[i] for i in range(sntIdx - ngramLen, sntIdx + 1)])
 						ngramTagSet = set(ngramTags)
 						
-						if (not self.__UNK__ in ngramIdxs) and (ngramTagSet & fltPos):
+						#if (not self.__UNK__ in ngramIdxs) and (ngramTagSet & fltPos):
+						if (not self.__UNK__ in ngramIdxs):
 							hashVal = list2hash(ngramIdxs, self.wordBits)
 							ngramFreqDict[ngramLen][hashVal] += 1
 		
@@ -166,9 +169,9 @@ class CorpusNgramIterator:
 		seqLen = len(seq)
 		
 		for idx, elem in enumerate(seq):
-			if self.epochCount > 3:
+			if self.epochCount > 1:
 				maxLen = self.maxNgramLen
-			elif self.epochCount > 1:
+			elif self.epochCount > 0:
 				maxLen = min(self.maxNgramLen, 2)
 			else:
 				maxLen = 1
