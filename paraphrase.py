@@ -4,6 +4,7 @@ import nvecs
 import sys
 import logging
 import math
+import gensim
 
 from collections import defaultdict
 from apply_bpe import BPE
@@ -87,7 +88,7 @@ def paraphrase(simMdl, query, n = 5, qn = 10):
 	grid = defaultdict(lambda : dict())
 
 	scoredNgramPairs = list(ngrams(query, simMdl, qn))
-	logger.info("search space: " + "\n".join(["> " + str(x) for x in scoredNgramPairs]))
+	logger.debug("search space: " + "\n".join(["> " + str(x) for x in scoredNgramPairs]))
 	
 	startState = State(scoredNgramPairs)
 
@@ -103,12 +104,13 @@ def paraphrase(simMdl, query, n = 5, qn = 10):
 			logger.debug("   Processing level {0} state {1}".format(currLev, state))
 			
 			if state.isEnd(query):
-				fullForm = state.getExplanation()
+				expl = state.getExplanation()
+				fullForm = state.getFullForm()
 				prob = state.getProb()
 				
-				logger.debug("      End state: {0}, {1}".format(prob, fullForm))
+				logger.debug("      End state: {0}, {1}".format(prob, expl))
 				
-				results.append((fullForm, prob))
+				results.append((fullForm, prob, expl))
 			else:
 				deadEnd = True
 				
@@ -153,10 +155,14 @@ def test(query = "houseofcards", simMdlFile = "opensubs-bpe.trivecs", bpeMdlFile
 	
 	splitQuery = bpeSplit(query, bpeMdlFile)
 	
+	logger.info("Loading LM")
+	lmMdl = gensim.models.Word2Vec.load('gensim-bpe-hs.mdl')
+	
 	logger.info("Paraphrasing")
-	for phrase, prob in paraphrase(simMdl, splitQuery, n = 20, qn = 20):
-		logger.info("{0}: {1}".format(prob, phrase))
+	for phrase, prob, expl in paraphrase(simMdl, splitQuery, n = 20, qn = 20):
+		#logger.info("{0} / {1}: {2} ({3})".format(prob, lmMdl.score(phrase), " ".join(phrase), expl))
+		print("{0} / {1}: {2} ({3})".format(prob, lmMdl.score([phrase]), " ".join(phrase), expl))
 
 if __name__ == "__main__":
-	logging.basicConfig(level = logging.INFO)
+	#logging.basicConfig(level = logging.INFO)
 	test()
