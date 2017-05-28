@@ -48,7 +48,7 @@ class Ngram2Vec:
 		idxs = enumerate(sim)
 		
 		if k == 1:
-			return max(idxs, key=lambda x: 0 if x[0] == ngramIdx else x[1])
+			return [ max(idxs, key=lambda x: 0 if x[0] == ngramIdx else x[1]) ]
 		else:
 			idxs = sorted(idxs, key=lambda x: -x[1])
 			return idxs[1:1+k]
@@ -57,4 +57,13 @@ class Ngram2Vec:
 		rawRes = self.most_similar_idx(self.ngram2idx(ngram), k)
 		
 		return [(self.idx2ngram(w), f) for w, f in rawRes]
-		
+	
+	def __contains__(self, ngram):
+		try:
+			_ = self.ngram2idx(ngram)
+			return True
+		except KeyError as e:
+			return False
+	
+	def __getitem__(self, ngram):
+		return self.embeddings[self.ngram2idx(ngram)]
