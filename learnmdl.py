@@ -4,7 +4,7 @@ import re
 import sys
 import logging
 
-import ngramiter
+import ngram
 
 from gensim.models import Word2Vec
 
@@ -13,8 +13,8 @@ modelFile = sys.argv[2]
 
 logging.basicConfig(level = logging.INFO)
 
-lines = ngramiter.CorpusNgramIterator(dataFile)
+lines = ngram.SentenceNgramSampler(dataFile)
 
-model = Word2Vec(lines, workers=16, sg=1, hs=1)
+model = Word2Vec(lines, workers=16, sg=1, hs=1, iter=25)
 
 model.wv.save_word2vec_format(modelFile, binary = True)
