@@ -49,7 +49,7 @@ class SentenceNgramSampler:
 				
 				idx += 1
 				
-				if not idx % 10000:
+				if not idx % 500000:
 					logger.info("Read {0} sentences".format(idx))
 	
 	def _filterNgrams(self, minCounts):
@@ -79,7 +79,7 @@ class SentenceNgramSampler:
 			if ngram in self.ngramDict[nlen] and not (spec & covMap):
 				threshold = math.exp((-math.log(self.ngramDict[nlen][ngram]))/8)
 				
-				print(ngram, nlen, self.minCounts[nlen], self.ngramDict[nlen][ngram], threshold)
+				#print(ngram, nlen, self.minCounts[nlen], self.ngramDict[nlen][ngram], threshold)
 				
 				if random.random() < threshold:
 					result.append(spec)
