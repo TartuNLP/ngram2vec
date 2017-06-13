@@ -34,7 +34,8 @@ class State:
 		for inNgram, inNgramSpec, outNgramScoreList in self.expansions:
 			for outNgram, simProb in outNgramScoreList:
 				newstate = State(self.expansions, prev = self, ngram = outNgram, covVec = self.combineCovVec(inNgramSpec), simProb = self.simProb + math.log(simProb))
-				newstate.lmProb = rnnlm.score(newstate.getFullForm(), lmMdl, skipEOS=True)
+				newstate.lmProb = rnnlm.score(newstate.getFullForm(), lmMdl)
+				#print(newstate.ngram, newstate.getFullForm(), newstate.lmProb)
 				yield newstate
 
 	def compatible(self, expansion):
