@@ -15,6 +15,6 @@ logging.basicConfig(level = logging.INFO)
 
 lines = ngram.SentenceNgramSampler(dataFile)
 
-model = Word2Vec(lines, workers=16, sg=1, hs=1, iter=25)
+model = Word2Vec(lines, workers=16, sg=1, hs=1, iter=10)
 
 model.wv.save_word2vec_format(modelFile, binary = True)
