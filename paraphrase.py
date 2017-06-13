@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-import nvecs
 import sys
 import logging
 import math
-import gensim
+import rnnlm
+from gensim.models import KeyedVectors
 
 from collections import defaultdict
 from apply_bpe import BPE
@@ -30,10 +30,12 @@ class State:
 	def getKey(self):
 		return str(self.covVec) + "//" + str(self.getFullForm())
 
-	def nextStates(self):
+	def nextStates(self, lmMdl):
 		for inNgram, inNgramSpec, outNgramScoreList in self.expansions:
 			for outNgram, simProb in outNgramScoreList:
-				yield State(self.expansions, prev = self, ngram = outNgram, covVec = self.combineCovVec(inNgramSpec), simProb = self.simProb + math.log(simProb))
+				newstate = State(self.expansions, prev = self, ngram = outNgram, covVec = self.combineCovVec(inNgramSpec), simProb = self.simProb + math.log(simProb))
+				newstate.lmProb = rnnlm.score(newstate.getFullForm(), lmMdl, skipEOS=True)
+				yield newstate
 
 	def compatible(self, expansion):
 		return not expansion[1] & self.covVec
@@ -80,10 +82,12 @@ def ngrams(seq, simMdl, qn, maxNgramLen = 3):
 				currSpec = range(i - l, i + 1)
 				currNgram = [seq[i] for i in currSpec]
 				
-				if currNgram in simMdl:
-					yield currNgram, set(currSpec), simMdl.most_similar(currNgram, k = qn)
+				currNgramStr = "__".join(currNgram)
+				
+				if currNgramStr in simMdl:
+					yield currNgram, set(currSpec), [(ngram.split("__"), prob) for ngram, prob in simMdl.most_similar(currNgramStr, topn = qn)]
 
-def paraphrase(simMdl, query, n = 5, qn = 10):
+def paraphrase(query, simMdl, lmMdl, n = 5, qn = 10):
 	logger.debug("Paraphrasing " + str(query))
 	grid = defaultdict(lambda : dict())
 
@@ -116,7 +120,7 @@ def paraphrase(simMdl, query, n = 5, qn = 10):
 				
 				logger.debug("      Next states:")
 				
-				for nextState in state.nextStates():
+				for nextState in state.nextStates(lmMdl):
 					lev = currLev + len(nextState.ngram)
 					key = nextState.getKey()
 					
@@ -149,20 +153,22 @@ def bpeSplit(query, bpeMdlFile):
 	
 	return splitQuery
 
-def test(query = "houseofcards", simMdlFile = "opensubs-bpe.trivecs", bpeMdlFile = "opensubs-bpe.mdl"):
+def test(query = "houseofcards", simMdlFile = "tok50m.news.trivecs", bpeMdlFile = "opensubs-bpe.mdl", lmMdlFile = "tok2m.news.lm", dictFile = "tok2m.news.vocs"):
 	logger.info("Loading similarity model")
-	simMdl = nvecs.Ngram2Vec(simMdlFile)
+	simMdl = KeyedVectors.load_word2vec_format(simMdlFile, binary=True)
 	
-	splitQuery = bpeSplit(query, bpeMdlFile)
+	#splitQuery = bpeSplit(query, bpeMdlFile)
+	splitQuery = ['house', 'of', 'cards']
 	
 	logger.info("Loading LM")
-	lmMdl = gensim.models.Word2Vec.load('gensim-bpe-hs.mdl')
+	lmMdl = rnnlm.loadModels(lmMdlFile, dictFile)
 	
 	logger.info("Paraphrasing")
-	for phrase, prob, expl in paraphrase(simMdl, splitQuery, n = 20, qn = 20):
-		#logger.info("{0} / {1}: {2} ({3})".format(prob, lmMdl.score(phrase), " ".join(phrase), expl))
-		print("{0} / {1}: {2} ({3})".format(prob, lmMdl.score([phrase]), " ".join(phrase), expl))
+	results = paraphrase(splitQuery, simMdl, lmMdl, n = 20, qn = 20)
+	logger.info("Len: {0}".format(len(results)))
+	for phrase, prob, expl in results:
+		logger.info("{0}: {1} ({2})".format(prob, " ".join(phrase), expl))
 
 if __name__ == "__main__":
-	#logging.basicConfig(level = logging.INFO)
+	logging.basicConfig(level = logging.INFO)
 	test()
