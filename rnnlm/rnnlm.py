@@ -1,6 +1,7 @@
 import sys
 import numpy as np
 import math
+import pickle
 
 from collections import defaultdict, Counter
 
@@ -10,6 +11,8 @@ from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import LSTM
 from keras.optimizers import SGD
 from keras.utils import to_categorical
+
+from keras.models import load_model
 
 SOS = 1
 EOS = 2
@@ -91,7 +94,9 @@ def renorm(pd):
 	s = sum(raw)
 	return [p/s for p in raw]
 
-def sample(mdl, dicts):
+def sample(mdls):
+	(mdl, dicts) = mdls
+	
 	baseInput = np.zeros([1,50], dtype='int32')
 	
 	result = []
@@ -115,7 +120,9 @@ def sample(mdl, dicts):
 	
 	return result, prob/(len(result)+1)
 
-def score(mdl, snt, dicts):
+def score(snt, models, skipEOS = False):
+	(mdl, dicts) = models
+	
 	inputs, outputs = text2numio([snt], dicts['w2i'], dicts['m'])
 	
 	hyps = mdl.predict(inputs)
@@ -125,13 +132,20 @@ def score(mdl, snt, dicts):
 	
 	for j, pVec in enumerate(hyps[0]):
 		inp = inputs[0, j]
-		
-		if inp == 0:
-			break
-		
 		outp = outputs[0, j, 0]
+		
+		if inp == 0 or (skipEOS and outp == EOS):
+			break
 		
 		length += 1
 		result += math.log(pVec[outp])
 		
 	return result / length
+
+def loadModels(modelFile, dictFile):
+	mdl = load_model(modelFile)
+	
+	with open(dictFile, 'rb') as fh:
+		dicts = pickle.load(fh)
+	
+	return (mdl, dicts)
