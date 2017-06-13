@@ -24,6 +24,9 @@ if __name__ == "__main__":
 		
 		lm = rnnlm.initModel(vocSize, maxLen)
 		
+		rnnlm.learn(lm, inputs, outputs)
+		lm.save(modelOutFile)
+		
 	elif len(sys.argv) == 5:
 		#continue learning
 		dataFile = sys.argv[1]
@@ -31,15 +34,12 @@ if __name__ == "__main__":
 		modelInFile = sys.argv[3]
 		modelOutFile = sys.argv[4]
 		
-		with open(dictInFile, 'rb') as fh:
-			dicts = pickle.load(fh)
+		(lm, mdls) = rnnlm.loadModels(modelInFile, dictInFile)
 		
 		textData = rnnlm.file2text(dataFile, maxLen = dicts['m'])
 		inputs, outputs = rnnlm.text2numio(textData, dicts['w2i'], dicts['m'])
 		
-		lm = load_model(modelInFile)
+		rnnlm.learn(lm, inputs, outputs)
+		lm.save(modelOutFile)
 	else:
 		raise Exception("AAAAA")
-	
-	rnnlm.learn(lm, inputs, outputs)
-	lm.save(modelOutFile)

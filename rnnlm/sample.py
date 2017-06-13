@@ -9,12 +9,9 @@ if __name__ == "__main__":
 	modelInFile = sys.argv[1]
 	dictInFile = sys.argv[2]
 	
-	with open(dictInFile, 'rb') as fh:
-		dicts = pickle.load(fh)
+	mdls = rnnlm.loadModels(modelInFile, dictInFile)
 	
-	lm = load_model(modelInFile)
+	raw, prob = rnnlm.sample(mdls)
 	
-	raw, prob = rnnlm.sample(lm, dicts)
-	
-	decoded = [str(dicts['i2w'][i]) for i in raw]
+	decoded = [str(mdls[1]['i2w'][i]) for i in raw]
 	print(" ".join(decoded) + " (" + str(prob) + ")")
