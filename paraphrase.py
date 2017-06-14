@@ -72,7 +72,7 @@ class State:
 		
 		return ", ".join([str(a) + "/" + str(b) for a, b in result])
 
-def ngrams(seq, simMdl, qn, maxNgramLen = 3):
+def ngrams(seq, simMdl, qn, maxNgramLen = 4):
 	for i in range(len(seq)):
 		#thisUniGram = [seq[i]]
 		
@@ -144,32 +144,53 @@ def paraphrase(query, simMdl, lmMdl, n = 5, qn = 10):
 	
 	return sorted(results, key=lambda x: -x[1])
 
-def bpeSplit(query, bpeMdlFile):
-	logger.info("Loading BPE model")
+def loadBpe(bpeMdlFile):
 	with open(bpeMdlFile, 'r') as codes:
 		bpeMdl = BPE(codes, separator = '')
-	
-	splitQuery = bpeMdl.segment(query).split()
-	logger.debug("Query '{0}' split with BPE as {1}".format(query, str(splitQuery)))
-	
-	return splitQuery
+	return bpeMdl
 
-def test(query = "houseofcards", simMdlFile = "tok50m.news.trivecs", bpeMdlFile = "opensubs-bpe.mdl", lmMdlFile = "tok2m.news.lm", dictFile = "tok2m.news.vocs"):
-	logger.info("Loading similarity model")
-	simMdl = KeyedVectors.load_word2vec_format(simMdlFile, binary=True)
+def bpeSplit(query, bpeMdl):
+	result = []
+	for segm in query:
+		result.append(bpeMdl.segment(segm))
 	
-	#splitQuery = bpeSplit(query, bpeMdlFile)
-	splitQuery = ['house', 'of', 'cards']
-	
-	logger.info("Loading LM")
-	lmMdl = rnnlm.loadModels(lmMdlFile, dictFile)
-	
-	logger.info("Paraphrasing")
-	results = paraphrase(splitQuery, simMdl, lmMdl, n = 20, qn = 20)
-	logger.info("Len: {0}".format(len(results)))
-	for phrase, prob, expl in results:
-		logger.info("{0}: {1} ({2})".format(prob, " ".join(phrase), expl))
+	return (" ".join(result)).split()
 
 if __name__ == "__main__":
 	logging.basicConfig(level = logging.INFO)
-	test()
+	
+	try:
+		simMdlFile = sys.argv[1]
+		bpeMdlFile = sys.argv[2]
+		lmMdlFile = sys.argv[3]
+		dictFile = sys.argv[4]
+	except IndexError:
+		print("Usage: paraphrase.py  ngramMdl  bpeMdl  languageMdl  dictMdl")
+	else:
+		logger.info("Loading similarity model")
+		simMdl = KeyedVectors.load_word2vec_format(simMdlFile, binary=True)
+		
+		a = simMdl.most_similar(list(simMdl.vocab)[5])
+		logger.debug(str(a))
+		
+		logger.info("Loading LM")
+		lmMdl = rnnlm.loadModels(lmMdlFile, dictFile)
+		
+		logger.info("Loading BPE model")
+		bpeMdl = loadBpe(bpeMdlFile)
+		
+		logger.info("Ready to paraphrase (enter 'quit' to quit)")
+		
+		query = "-"
+		
+		while query != ["quit"]:
+			sys.stdout.write("\nQuery: ")
+			
+			query = input().lower().split()
+			
+			splitQuery = bpeSplit(query, bpeMdl)
+			
+			print("(split as " + "|".join(splitQuery) + ")")
+			results = paraphrase(splitQuery, simMdl, lmMdl, n = 5, qn = 10)
+			for phrase, prob, expl in results[:5]:
+				print("{2} (p={1} / {3})".format("".join(phrase), prob, "|".join(phrase), expl))
