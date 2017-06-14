@@ -13,7 +13,7 @@ modelFile = sys.argv[2]
 
 logging.basicConfig(level = logging.INFO)
 
-lines = ngram.SentenceNgramSampler(dataFile)
+lines = ngram.SentenceNgramSampler(dataFile, minCounts = [None, 30, 40, 50])
 
 model = Word2Vec(lines, workers=16, sg=1, hs=1, iter=10)
 
