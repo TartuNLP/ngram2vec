@@ -19,7 +19,7 @@ if __name__ == "__main__":
 		w2i, i2w = rnnlm.text2dicts(textData, vocSize)
 		inputs, outputs = rnnlm.text2numio(textData, w2i, maxLen)
 		
-		with open(sys.argv[3], 'wb') as fh:
+		with open(dictOutFile, 'wb') as fh:
 			pickle.dump({ 'w2i': w2i, 'i2w': i2w, 'v': vocSize, 'm': maxLen }, fh, protocol=pickle.HIGHEST_PROTOCOL)
 		
 		lm = rnnlm.initModel(vocSize, maxLen)
