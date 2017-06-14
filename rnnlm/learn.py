@@ -34,7 +34,7 @@ if __name__ == "__main__":
 		modelInFile = sys.argv[3]
 		modelOutFile = sys.argv[4]
 		
-		(lm, mdls) = rnnlm.loadModels(modelInFile, dictInFile)
+		(lm, dicts) = rnnlm.loadModels(modelInFile, dictInFile)
 		
 		textData = rnnlm.file2text(dataFile, maxLen = dicts['m'])
 		inputs, outputs = rnnlm.text2numio(textData, dicts['w2i'], dicts['m'])
