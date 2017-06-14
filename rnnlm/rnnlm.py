@@ -140,7 +140,8 @@ def score(snt, models, skipEOS = False):
 		length += 1
 		result += math.log(pVec[outp])
 		
-	return result / length
+	#return result / length
+	return result / 10
 
 def loadModels(modelFile, dictFile):
 	mdl = load_model(modelFile)
