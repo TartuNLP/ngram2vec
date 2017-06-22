@@ -18,4 +18,4 @@ if __name__ == "__main__":
 		textData = rnnlm.file2text(dataFile)
 		
 		for snt in textData:
-			print(rnnlm.score(snt, mdl))
+			print(snt, rnnlm.score(snt, mdl))

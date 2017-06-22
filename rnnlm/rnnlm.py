@@ -19,16 +19,23 @@ EOS = 2
 OOV = 3
 
 def file2text(filename, maxLen = 50):
-	with open(filename, 'r') as fh:
-		result = []
+	if filename == '-':
+		fh = sys.stdin
+	else:
+		fh = open(filename, 'r')
+	
+	result = []
+	
+	for line in fh:
+		toks = line.strip().lower().split()
 		
-		for line in fh:
-			toks = line.strip().lower().split()
-			
-			if len(toks) < maxLen:
-				result.append(toks)
-		
-		return result
+		if toks and len(toks) < maxLen:
+			result.append(toks)
+	
+	if filename != '-':
+		fh.close()
+	
+	return result
 
 def text2dicts(textData, vocSize = 10000):
 	idx2word = { 0: None, SOS: "__s__", EOS: "__/s__", OOV: "UNK" }
