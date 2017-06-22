@@ -1,2 +1,2 @@
 # ngram2vec
-Embeddings for n-grams
+Embeddings for n-grams.
