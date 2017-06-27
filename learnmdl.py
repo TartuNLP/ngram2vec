@@ -16,16 +16,17 @@ if __name__ == "__main__":
 	dataFile = sys.argv[1]
 	modelFile = sys.argv[2]
 	
-	srcFactor = None
+	tokFactor = 0
+	posFactor = 2
 	freqFilter = [5, 30, 50]
-	firstPosFilter = None
-	lastPosFilter = None
+	firstPosFilter = "A,S,H"
+	lastPosFilter = "S,H"
 	somePosFilter = None
 	beta = 0.125
 	
 	logging.basicConfig(level = logging.INFO)
 
-	lines = ngram.SentenceNgramSampler(dataFile, minCounts = freqFilter, srcFactor = srcFactor, firstPosFilter = firstPosFilter, lastPosFilter = lastPosFilter, atLeastOnePosFilter = somePosFilter, ngramThresholdBeta = beta)
+	lines = ngram.SentenceNgramSampler(dataFile, minCounts = freqFilter, tokFactor = tokFactor, posFactor = posFactor, firstPosFilter = firstPosFilter, lastPosFilter = lastPosFilter, atLeastOnePosFilter = somePosFilter, ngramThresholdBeta = beta)
 
 	model = Word2Vec(lines, workers=20, sg=1, hs=1, iter=10)
 

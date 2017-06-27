@@ -48,16 +48,14 @@ class SentenceNgramSampler:
 		self.fileHandle = open(filename, 'r')
 	
 	def __next__(self):
-		srcSnt = self._getNextSentence()
+		factoredSnt = self._getNextSentence()
 		
-		#apply ngram joining and return result
-		
-		ngramsAndSpecs = list(self.ngrams(srcSnt))
+		ngramsAndSpecs = list(self.ngrams(factoredSnt))
 		random.shuffle(ngramsAndSpecs)
 		
 		toJoin = self._getNonoverlappingNgrams(ngramsAndSpecs)
 		
-		result = self._applyJoinOps(srcSnt, toJoin)
+		result = self._applyJoinOps(factoredSnt, toJoin)
 		
 		return result
 	
@@ -67,78 +65,94 @@ class SentenceNgramSampler:
 		else:
 			return set(rawFilterSpec.split(","))
 	
+	def _getFactors(self, rawToken):
+		factors = rawToken.split("|")
+		
+		f1 = factors[self.tokFactor].lower()
+		f2 = None if self.posFactor is None else factors[self.posFactor]
+		
+		return (f1, f2)
+	
 	def _cleanSentence(self, rawSnt):
-		halfReady = [t for t in rawSnt.strip().lower().split() if re.search(r'\w', t)]
+		halfReady = [t for t in rawSnt.strip().split() if re.search(r'\w', t)]
 		
 		if self.tokFactor is None:
-			return halfReady, None
+			return [(t.lower(), None) for t in halfReady]
 		else:
-			factors = [t.split("|") for t in halfReady]
+			return [self._getFactors(t) for t in halfReady]
+	
+	def _tryGetNext(self):
+		#either first iteration, or re-reading the file every time
+		if (self.currSntIdx is None):
+			rawSnt = next(self.fileHandle)
+			return self._cleanSentence(rawSnt)
+		
+		#or reading from data in memory
+		else:
+			snt = self.storedData[self.currSntIdx]
+			self.currSntIdx += 1
+			return snt
+	
+	def _handleEndOfFile(self):
+		self.fileHandle.close()
+		
+		if self.firstIter:
+			self._filterDict()
+		
+		self.firstIter = False
+		
+		if self.crazyBigMFCorpus:
+			self.fileHandle = open(self.filename, 'r')
+		else:
+			self.currSntIdx = 0
 			
-			tokResult = map(itemgetter(self.tokFactor), factors)
+		raise StopIteration
+	
+	def _handleEndOfList(self):
+		self.currSntIdx = 0
+		raise StopIteration
+	
+	def _updateNgramDict(self, fsnt):
+		#update ngram freq counter
+		for ngram, spec in self.ngrams(fsnt):
+			nlen = len(spec) - 1
 			
-			if self.posFactor is None:
-				posResult = None
-			else:
-				posResult = map(itemgetter(self.posFactor), factors)
-			
-			return tokResult, posResult
+			if self._acceptableNgram(fsnt, spec):
+				self.ngramDict[nlen][ngram] += 1
 	
 	def _getNextSentence(self):
 		try:
-			#either first iteration, or re-reading the file every time
-			if (self.currSntIdx is None):
-				rawSnt = next(self.fileHandle)
-				srcSnt, fltFactors = self._cleanSentence(rawSnt)
-			
-			#or reading from data in memory
-			else:
-				srcSnt = self.storedData[self.currSntIdx]
-				fltFactors = None
-				self.currSntIdx += 1
+			factoredSnt = self._tryGetNext()
 		
-		#ran out of data
 		except IndexError:
-			self.currSntIdx = 0
-			raise StopIteration
+			self._handleEndOfList()
 		
-		#end of file
 		except StopIteration:
-			self.fileHandle.close()
-			
-			if self.firstIter:
-				self._filterDict()
-			
-			self.firstIter = False
-			
-			if self.crazyBigMFCorpus:
-				self.fileHandle = open(self.filename, 'r')
-			else:
-				self.currSntIdx = 0
-				
-			raise StopIteration
+			self._handleEndOfFile()
 		
 		if self.firstIter:
-			#update ngram freq counter
-			for ngram, spec in self.ngrams(srcSnt):
-				nlen = len(spec) - 1
-				
-				if self._acceptableNgram(fltFactors, spec):
-					self.ngramDict[nlen][ngram] += 1
+			self._updateNgramDict(factoredSnt)
 			
 			if not self.crazyBigMFCorpus:
-				self.storedData.append(srcSnt)
+				self.storedData.append(factoredSnt)
 		
-		#ready
-		return srcSnt
+		return factoredSnt
 	
-	def _acceptableNgram(self, fltFactors, ngramSpec):
+	def _acceptableNgram(self, fsnt, ngramSpec):
 		if self.posFactor is None:
 			return True
 		
-		factors = [fltFactors[i] for i in sorted(ngramSpec)]
+		factors = [fsnt[i][1] for i in sorted(ngramSpec)]
 		
-		return (self.firstPosFilter is None or factors[0] in self.firstPosFilter) and (self.lastPosFilter is None or factors[-1] in self.lastPosFilter) and (self.atLeastOnePosFilter is None or set(factors) & self.atLeastOnePosFilter)
+		firstOk = (self.firstPosFilter is None or factors[0] in self.firstPosFilter)
+		lastOk = (self.lastPosFilter is None or factors[-1] in self.lastPosFilter)
+		someOk = (self.atLeastOnePosFilter is None or set(factors) & self.atLeastOnePosFilter)
+		
+		result = (firstOk and lastOk and someOk)
+		
+		#print(factors, firstOk, lastOk, someOk, result)
+		
+		return result
 	
 	def _filterDict(self):
 		for nlen in self.ngramDict:
@@ -147,13 +161,13 @@ class SentenceNgramSampler:
 			after = len(self.ngramDict[nlen])
 			logger.info("Filtered {0}-grams from {1} down to {2}".format(nlen + 1, before, after))
 	
-	def ngrams(self, srcSnt):
-		for idx, tok in enumerate(srcSnt):
+	def ngrams(self, fSnt):
+		for idx in range(len(fSnt)):
 			for nlen in range(1, self.maxNgramLen):
 				if idx - nlen >= 0:
 					spec = range(idx - nlen, idx + 1)
 					
-					yield "__".join([srcSnt[i] for i in spec]), set(spec)
+					yield "__".join([fSnt[i][0] for i in spec]), set(spec)
 	
 	def _getNonoverlappingNgrams(self, ngramsAndSpecs):
 		result = []
@@ -173,10 +187,10 @@ class SentenceNgramSampler:
 		return result
 	
 	def _applyJoinOps(self, sentence, toJoin):
-		result = sentence
+		result = [t for t, _ in sentence]
 		
 		for op in sorted(toJoin, key=lambda x: -min(x)):
-			result = result[:min(op)] + ["__".join([sentence[i] for i in sorted(op)])] + result[max(op)+1:]
+			result = result[:min(op)] + ["__".join([sentence[i][0] for i in sorted(op)])] + result[max(op)+1:]
 		
 		return result
 	
