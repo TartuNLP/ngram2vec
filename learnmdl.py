@@ -20,6 +20,7 @@ if __name__ == "__main__":
 	somePosFilter = None
 	crazyBigMFCorpus = True
 	beta = 0.125
+	epochs = 10
 	
 	logging.basicConfig(level = logging.INFO)
 
@@ -29,8 +30,8 @@ if __name__ == "__main__":
 	
 	model.build_vocab(lines)
 	
-	for i in range(10):
+	for i in range(epochs):
 		model.train(lines)
 		model.save(modelFile + ".trainable." + str(i))
-		model.wv.save_word2vec_format(modelFile + "." + str(i), binary = True)
+		model.save_word2vec_format(modelFile + "." + str(i), binary = True)
 		print("Iteration {0} done".format(i))
