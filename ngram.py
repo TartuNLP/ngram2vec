@@ -48,14 +48,17 @@ class SentenceNgramSampler:
 		self.fileHandle = open(filename, 'r')
 	
 	def __next__(self):
-		factoredSnt = self._getNextSentence()
+		result = None
 		
-		ngramsAndSpecs = list(self.ngrams(factoredSnt))
-		random.shuffle(ngramsAndSpecs)
-		
-		toJoin = self._getNonoverlappingNgrams(ngramsAndSpecs)
-		
-		result = self._applyJoinOps(factoredSnt, toJoin)
+		while not result:
+			factoredSnt = self._getNextSentence()
+			
+			ngramsAndSpecs = list(self.ngrams(factoredSnt))
+			random.shuffle(ngramsAndSpecs)
+			
+			toJoin = self._getNonoverlappingNgrams(ngramsAndSpecs)
+			
+			result = self._applyJoinOps(factoredSnt, toJoin)
 		
 		return result
 	
@@ -66,20 +69,20 @@ class SentenceNgramSampler:
 			return set(rawFilterSpec.split(","))
 	
 	def _getFactors(self, rawToken):
-		factors = rawToken.split("|")
-		
-		f1 = factors[self.tokFactor].lower()
-		f2 = None if self.posFactor is None else factors[self.posFactor]
-		
-		return (f1, f2)
+		if self.tokFactor is None:
+			return (rawToken, None)
+		else:
+			factors = rawToken.split("|")
+			
+			f1 = factors[self.tokFactor].lower()
+			f2 = None if self.posFactor is None else factors[self.posFactor]
+			
+			return (f1, f2)
 	
 	def _cleanSentence(self, rawSnt):
-		halfReady = [t for t in rawSnt.strip().split() if re.search(r'\w', t)]
+		result = [self._getFactors(t) for t in rawSnt.strip().split()]
 		
-		if self.tokFactor is None:
-			return [(t.lower(), None) for t in halfReady]
-		else:
-			return [self._getFactors(t) for t in halfReady]
+		return [(t, p) for t, p in result if re.search(r'[a-zäöüõšž]', t)]
 	
 	def _tryGetNext(self):
 		#either first iteration, or re-reading the file every time

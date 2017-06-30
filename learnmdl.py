@@ -8,26 +8,29 @@ import ngram
 
 from gensim.models import Word2Vec
 
-#raw / use factor X
-#filter freqs
-#filter factors
-
 if __name__ == "__main__":
 	dataFile = sys.argv[1]
 	modelFile = sys.argv[2]
 	
-	tokFactor = 0
+	tokFactor = 1
 	posFactor = 2
-	freqFilter = [5, 30, 50]
+	freqFilter = [5, 30, 50, 70, 90]
 	firstPosFilter = "A,S,H"
 	lastPosFilter = "S,H"
 	somePosFilter = None
+	crazyBigMFCorpus = True
 	beta = 0.125
 	
 	logging.basicConfig(level = logging.INFO)
 
-	lines = ngram.SentenceNgramSampler(dataFile, minCounts = freqFilter, tokFactor = tokFactor, posFactor = posFactor, firstPosFilter = firstPosFilter, lastPosFilter = lastPosFilter, atLeastOnePosFilter = somePosFilter, ngramThresholdBeta = beta)
+	lines = ngram.SentenceNgramSampler(dataFile, minCounts = freqFilter, tokFactor = tokFactor, posFactor = posFactor, firstPosFilter = firstPosFilter, lastPosFilter = lastPosFilter, atLeastOnePosFilter = somePosFilter, ngramThresholdBeta = beta, crazyBigMFCorpus = crazyBigMFCorpus)
 
-	model = Word2Vec(lines, workers=20, sg=1, hs=1, iter=10)
-
-	model.wv.save_word2vec_format(modelFile, binary = True)
+	model = Word2Vec(workers=12, sg=1, hs=1, iter=10, min_count=freqFilter[0])
+	
+	model.build_vocab(lines)
+	
+	for i in range(10):
+		model.train(lines)
+		model.save(modelFile + ".trainable." + str(i))
+		model.wv.save_word2vec_format(modelFile + "." + str(i), binary = True)
+		print("Iteration {0} done".format(i))
