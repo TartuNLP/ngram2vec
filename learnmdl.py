@@ -18,15 +18,20 @@ if __name__ == "__main__":
 	firstPosFilter = "A,S,H"
 	lastPosFilter = "S,H"
 	somePosFilter = None
-	crazyBigMFCorpus = True
+	crazyBigMFCorpus = False
 	beta = 0.125
 	epochs = 10
 	
 	logging.basicConfig(level = logging.INFO)
 
 	lines = ngram.SentenceNgramSampler(dataFile, minCounts = freqFilter, tokFactor = tokFactor, posFactor = posFactor, firstPosFilter = firstPosFilter, lastPosFilter = lastPosFilter, atLeastOnePosFilter = somePosFilter, ngramThresholdBeta = beta, crazyBigMFCorpus = crazyBigMFCorpus)
+	
+	print("Initializing")
+	for line in lines:
+		pass
 
-	model = Word2Vec(workers=12, sg=1, hs=1, iter=10, min_count=freqFilter[0])
+	print("Learning")
+	model = Word2Vec(workers=60, sg=1, hs=1, iter=10, min_count=freqFilter[0])
 	
 	model.build_vocab(lines)
 	

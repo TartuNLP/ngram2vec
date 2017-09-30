@@ -3,10 +3,10 @@
 # Author: Mark Fishel
 
 import re
-import numpy as np
 import random
 import pickle
 import math
+import sys
 
 import logging
 
@@ -26,7 +26,7 @@ class SentenceNgramSampler:
 	
 	firstIter = True
 
-	def __init__(self, filename, minCounts = [None, 30, 50], ngramThresholdBeta = 0.125,
+	def __init__(self, filename, minCounts = [5, 30, 50], ngramThresholdBeta = 0.125,
 				firstPosFilter = None, lastPosFilter = None, atLeastOnePosFilter = None,
 				crazyBigMFCorpus = False, tokFactor = None, posFactor = None):
 		
@@ -116,6 +116,9 @@ class SentenceNgramSampler:
 		raise StopIteration
 	
 	def _updateNgramDict(self, fsnt):
+		for w in fsnt:
+			self.ngramDict[0][w[0]] += 1
+		
 		#update ngram freq counter
 		for ngram, spec in self.ngrams(fsnt):
 			nlen = len(spec) - 1
@@ -199,3 +202,16 @@ class SentenceNgramSampler:
 	
 	def __iter__(self):
 		return self
+
+if __name__ == "__main__":
+	logging.basicConfig(level = logging.INFO)
+	
+	sampler = SentenceNgramSampler(sys.argv[1], minCounts = [2, 2, 2])
+	
+	for snt in sampler:
+		print(snt)
+	
+	print("Second iteration")
+	
+	for snt in sampler:
+		print(snt)
