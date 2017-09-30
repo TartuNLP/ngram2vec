@@ -6,6 +6,7 @@ import logging
 
 import ngram
 
+from datetime import datetime
 from gensim.models import Word2Vec
 
 def debug(msg):
