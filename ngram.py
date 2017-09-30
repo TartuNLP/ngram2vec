@@ -21,6 +21,8 @@ class SentenceNgramSampler:
 	
 	ngramDict = defaultdict(lambda: defaultdict(int))
 	
+	length = 0
+	
 	currSntIdx = None
 	storedData = []
 	
@@ -46,6 +48,9 @@ class SentenceNgramSampler:
 		self.filename = filename
 		
 		self.fileHandle = open(filename, 'r')
+	
+	def __len__(self):
+		return self.length
 	
 	def __next__(self):
 		result = None
@@ -137,6 +142,7 @@ class SentenceNgramSampler:
 			self._handleEndOfFile()
 		
 		if self.firstIter:
+			self.length += 1
 			self._updateNgramDict(factoredSnt)
 			
 			if not self.crazyBigMFCorpus:
