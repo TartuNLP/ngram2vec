@@ -32,7 +32,7 @@ if __name__ == "__main__":
 	somePosFilter = None
 	crazyBigMFCorpus = False
 	beta = 0.125
-	epochs = 10
+	epochs = 0
 	
 	logging.basicConfig(level = logging.INFO)
 
@@ -43,14 +43,15 @@ if __name__ == "__main__":
 		for line in lines:
 			pass
 
-	model = Word2Vec(workers=60, sg=1, hs=1, iter=10, min_count=freqFilter[0])
-	
-	debug("Building vocab")
-	model.build_vocab(lines)
-	
-	debug("Learning")
-	for i in range(epochs):
-		model.train(lines, total_examples = len(lines), epochs = 1)
-		model.save(modelFile + ".trainable." + str(i))
-		model.save_word2vec_format(modelFile + "." + str(i), binary = True)
-		debug("Iteration {0} done".format(i))
+	if epochs > 0:
+		model = Word2Vec(workers=60, sg=1, hs=1, iter=10, min_count=freqFilter[0])
+		
+		debug("Building vocab")
+		model.build_vocab(lines)
+		
+		debug("Learning")
+		for i in range(epochs):
+			model.train(lines, total_examples = len(lines), epochs = 1)
+			model.save(modelFile + ".trainable." + str(i))
+			model.save_word2vec_format(modelFile + "." + str(i), binary = True)
+			debug("Iteration {0} done".format(i))
