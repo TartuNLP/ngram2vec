@@ -12,11 +12,19 @@ if __name__ == "__main__":
 	dataFile = sys.argv[1]
 	modelFile = sys.argv[2]
 	
-	tokFactor = 1
-	posFactor = 2
+	#Factored Estonian data:
+	#tokFactor = 0
+	#posFactor = 2
+	#firstPosFilter = "A,S,H"
+	#lastPosFilter = "S,H"
+	
+	#Unfactored data:
+	tokFactor = None
+	posFactor = None
+	firstPosFilter = None
+	lastPosFilter = None
+	
 	freqFilter = [5, 30, 50, 70, 90]
-	firstPosFilter = "A,S,H"
-	lastPosFilter = "S,H"
 	somePosFilter = None
 	crazyBigMFCorpus = False
 	beta = 0.125
@@ -26,9 +34,10 @@ if __name__ == "__main__":
 
 	lines = ngram.SentenceNgramSampler(dataFile, minCounts = freqFilter, tokFactor = tokFactor, posFactor = posFactor, firstPosFilter = firstPosFilter, lastPosFilter = lastPosFilter, atLeastOnePosFilter = somePosFilter, ngramThresholdBeta = beta, crazyBigMFCorpus = crazyBigMFCorpus)
 	
-	print("Initializing")
-	for line in lines:
-		pass
+	if len(freqFilter) > 1:
+		print("Initializing")
+		for line in lines:
+			pass
 
 	print("Learning")
 	model = Word2Vec(workers=60, sg=1, hs=1, iter=10, min_count=freqFilter[0])
