@@ -53,5 +53,5 @@ if __name__ == "__main__":
 		for i in range(epochs):
 			model.train(lines, total_examples = len(lines), epochs = 1)
 			model.save(modelFile + ".trainable." + str(i))
-			model.save_word2vec_format(modelFile + "." + str(i), binary = True)
+			model.wv.save_word2vec_format(modelFile + "." + str(i), binary = True)
 			debug("Iteration {0} done".format(i))
