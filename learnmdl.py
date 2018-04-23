@@ -17,18 +17,18 @@ if __name__ == "__main__":
 	modelFile = sys.argv[2]
 	
 	#Factored Estonian data:
-	#tokFactor = 0
-	#posFactor = 2
-	#firstPosFilter = "A,S,H"
-	#lastPosFilter = "S,H"
+	tokFactor = 0
+	posFactor = 2
+	firstPosFilter = "A,S,H"
+	lastPosFilter = "S,H"
 	
 	#Unfactored data:
-	tokFactor = None
-	posFactor = None
-	firstPosFilter = None
-	lastPosFilter = None
+	#tokFactor = None
+	#posFactor = None
+	#firstPosFilter = None
+	#lastPosFilter = None
 	
-	freqFilter = [5, 30, 50, 70, 90]
+	freqFilter = [5, 70]
 	somePosFilter = None
 	crazyBigMFCorpus = False
 	beta = 0.125
