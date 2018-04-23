@@ -18,7 +18,7 @@ if __name__ == "__main__":
 	modelFile = sys.argv[2]
 	
 	#Factored Estonian data:
-	tokFactor = 0
+	tokFactor = 1
 	posFactor = 2
 	firstPosFilter = "A,S,H,V,X,D,G,U,Y"
 	lastPosFilter = "S,H,V,X,K,Y"
