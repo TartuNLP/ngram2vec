@@ -20,18 +20,12 @@ if __name__ == "__main__":
 	#Factored Estonian data:
 	tokFactor = 0
 	posFactor = 2
-	firstPosFilter = "A,S,H"
-	lastPosFilter = "S,H"
+	firstPosFilter = "A,S,H,V,X,D"
+	lastPosFilter = "S,H,V,X"
 	
-	#Unfactored data:
-	#tokFactor = None
-	#posFactor = None
-	#firstPosFilter = None
-	#lastPosFilter = None
-	
-	freqFilter = [5, 70]
+	freqFilter = [5, 50]
 	somePosFilter = None
-	crazyBigMFCorpus = False
+	crazyBigMFCorpus = True
 	beta = 0.125
 	epochs = 10
 	
