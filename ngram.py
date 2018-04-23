@@ -75,17 +75,22 @@ class SentenceNgramSampler:
 	
 	def _getFactors(self, rawToken):
 		if self.tokFactor is None:
-			return (rawToken, None)
+			f1 = rawToken.lower()
+			f2 = None
 		else:
 			factors = rawToken.split("|")
 			
-			f1 = factors[self.tokFactor].lower()
 			try:
-				f2 = None if self.posFactor is None else factors[self.posFactor]
+				f1 = factors[self.tokFactor].lower()
+				f2 = factors[self.posFactor]
 			except IndexError:
+				self.tokFactor = None
+				self.posFactor = None
+				
+				f1 = rawToken.lower()
 				f2 = None
 			
-			return (f1, f2)
+		return (f1, f2)
 	
 	def _cleanSentence(self, rawSnt):
 		result = [self._getFactors(t) for t in rawSnt.strip().split()]
