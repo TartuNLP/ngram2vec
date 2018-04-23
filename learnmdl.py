@@ -20,8 +20,8 @@ if __name__ == "__main__":
 	#Factored Estonian data:
 	tokFactor = 0
 	posFactor = 2
-	firstPosFilter = "A,S,H,V,X,D"
-	lastPosFilter = "S,H,V,X"
+	firstPosFilter = "A,S,H,V,X,D,G,U,Y"
+	lastPosFilter = "S,H,V,X,K,Y"
 	
 	freqFilter = [5, 50]
 	somePosFilter = None
