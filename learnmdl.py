@@ -3,6 +3,7 @@
 import re
 import sys
 import logging
+import os
 
 import ngram
 
@@ -32,7 +33,7 @@ if __name__ == "__main__":
 	somePosFilter = None
 	crazyBigMFCorpus = False
 	beta = 0.125
-	epochs = 0
+	epochs = 10
 	
 	logging.basicConfig(level = logging.INFO)
 
@@ -55,3 +56,5 @@ if __name__ == "__main__":
 			model.save(modelFile + ".trainable." + str(i))
 			model.wv.save_word2vec_format(modelFile + "." + str(i), binary = True)
 			debug("Iteration {0} done".format(i))
+		
+		os.rename(modelFile + "." + str(epochs - 1), modelFile)
