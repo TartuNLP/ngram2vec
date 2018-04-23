@@ -80,7 +80,10 @@ class SentenceNgramSampler:
 			factors = rawToken.split("|")
 			
 			f1 = factors[self.tokFactor].lower()
-			f2 = None if self.posFactor is None else factors[self.posFactor]
+			try:
+				f2 = None if self.posFactor is None else factors[self.posFactor]
+			except IndexError:
+				f2 = None
 			
 			return (f1, f2)
 	
@@ -156,8 +159,8 @@ class SentenceNgramSampler:
 		
 		factors = [fsnt[i][1] for i in sorted(ngramSpec)]
 		
-		firstOk = (self.firstPosFilter is None or factors[0] in self.firstPosFilter)
-		lastOk = (self.lastPosFilter is None or factors[-1] in self.lastPosFilter)
+		firstOk = (self.firstPosFilter is None or factors[0] in self.firstPosFilter or factors[0] is None)
+		lastOk = (self.lastPosFilter is None or factors[-1] in self.lastPosFilter or factors[-1] is None)
 		someOk = (self.atLeastOnePosFilter is None or set(factors) & self.atLeastOnePosFilter)
 		
 		result = (firstOk and lastOk and someOk)
